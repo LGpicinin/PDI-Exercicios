@@ -80,7 +80,7 @@ def inunda (img, row, col, comp: Component, lenCol, lenRow):
     if img[row, col-1, 0] == 1:
         inunda(img, row, col-1, comp, lenCol, lenRow)
 
-def rotula (img, largura_min, altura_min, n_pixels_min):
+def rotula (img, n_pixels_min):
 
     rows, cols, channels = img.shape
     label = 2
@@ -97,24 +97,6 @@ def rotula (img, largura_min, altura_min, n_pixels_min):
                     label = label + 1
     
     return dictionary
-            
-
-
-    '''Rotulagem usando flood fill. Marca os objetos da imagem com os valores
-[0.1,0.2,etc].
-
-Parâmetros: img: imagem de entrada E saída.
-            largura_min: descarta componentes com largura menor que esta.
-            altura_min: descarta componentes com altura menor que esta.
-            n_pixels_min: descarta componentes com menos pixels que isso.
-
-Valor de retorno: uma lista, onde cada item é um vetor associativo (dictionary)
-com os seguintes campos:
-
-'label': rótulo do componente.
-'n_pixels': número de pixels do componente.
-'T', 'L', 'B', 'R': coordenadas do retângulo envolvente de um componente conexo,
-respectivamente: topo, esquerda, baixo e direita.'''
 
     # TODO: escreva esta função.
     # Use a abordagem com flood fill recursivo.
@@ -145,7 +127,7 @@ def main ():
     cv2.imwrite ('01 - binarizada.png', img*255)
 
     start_time = timeit.default_timer ()
-    componentes = rotula (img, LARGURA_MIN, ALTURA_MIN, N_PIXELS_MIN)
+    componentes = rotula (img, N_PIXELS_MIN)
     n_componentes = len (componentes)
     print ('Tempo: %f' % (timeit.default_timer () - start_time))
     print ('%d componentes detectados.' % n_componentes)
