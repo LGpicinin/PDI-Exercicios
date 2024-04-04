@@ -53,8 +53,6 @@ def filtroSeparavel(altura, largura, img, img_out, canal):
 
 def imagemIntegral(altura, largura, img, img_out, canal):
 
-    larguraTotal = (largura*2) + 1
-    alturaTotal = (altura*2) + 1
     rows, cols, channel = img.shape
     img_integral = img.copy()
 
@@ -67,23 +65,45 @@ def imagemIntegral(altura, largura, img, img_out, canal):
         for col in range(0, cols):
             img_integral[row, col, canal] = img_integral[row, col, canal] + img_integral[row-1, col, canal]
 
-    for row in range(altura+1, rows-altura):
-        for col in range(largura+1, cols-largura):
+    for row in range(0, rows):
+        for col in range(0, cols):
             soma = 0
-            bottomRight = img_integral[row+altura, col+largura, canal]
+
+            limit_height = row+altura
+            limit_width = col+largura
+            min_height = row-altura
+            min_width = col-largura
+
+            #verifica altura e largura máxima permitida para a janela atual
+            if row+altura >= rows:
+                limit_height = rows-1
+            if col+largura >= cols:
+                limit_width = cols-1
+            bottomRight = img_integral[limit_height, limit_width, canal]
+
+            #verifica altura e a largura mínima permitida para a janela atual
+            #também calcula a soma para os casos onde a janela encosta na borda superior, na borda à esquerda ou nas duas
             if row-(altura+1) < 0 or col-(largura+1) < 0:
                 if row-(altura+1) < 0 and col-(largura+1) < 0:
                     soma = bottomRight
+                    min_height = 0
+                    min_width = 0
                 elif row-(altura+1) < 0:
-                    soma = bottomRight - img_integral[row+altura, col-(largura+1), canal]
+                    soma = bottomRight - img_integral[limit_height, col-(largura+1), canal]
+                    min_height = 0
                 else:
-                    soma = bottomRight - img_integral[row-(altura+1), col+largura, canal]
+                    soma = bottomRight - img_integral[row-(altura+1), limit_width, canal]
+                    min_width = 0
+
+            #calcula a soma da janela para o caso onde a janela não encosta na borda superior e nem na borda à esquerda
             else:
-                bottomLeft = img_integral[row+altura, col-(largura+1), canal]
-                topRight = img_integral[row-(altura+1), col+largura, canal]
+                bottomLeft = img_integral[limit_height, col-(largura+1), canal]
+                topRight = img_integral[row-(altura+1), limit_width, canal]
                 topLeft = img_integral[row-(altura+1), col-(largura+1), canal]
                 soma = bottomRight - topRight - bottomLeft + topLeft
 
+            alturaTotal = (limit_height - min_height) + 1
+            larguraTotal = (limit_width - min_width) + 1
             img_out[row, col, canal] = soma/(alturaTotal*larguraTotal)
     
 
@@ -115,7 +135,7 @@ def main():
             sys.exit()
 
     
-    #escolha da altura e da largura(ambos vão ser multiplicados por 2 e somado 1 nas funções)
+    #escolha da altura e da largura(ambos vão ser multiplicados por 2 e somado 1 nas funções para que seja ímpar)
             
     print( '\nDefina a largura da janela')
     largura = input()
@@ -166,7 +186,7 @@ def main():
 
 
 
-    #salva resultados em uma imagem
+    #salva cada resultado em uma imagem
    
     cv2.imwrite ('provaIngenuo.png', provaIngenuo*255)
     cv2.imwrite ('provaSeparavel.png', provaSeparável*255)
