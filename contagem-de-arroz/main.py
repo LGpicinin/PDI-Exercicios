@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 import sys
+import math
 
 IMG_60 = './imagens/60.bmp'
 IMG_82 = './imagens/82.bmp'
@@ -12,28 +13,106 @@ N_PIXELS_MIN = 50
 N_PIXELS_MAX = 250
 
 class Component:
-    def __init__(self, label, n_pixels, n_arroz) -> None:
+    def __init__(self, label, n_pixels, n_arroz, t, l, b, r) -> None:
         self.label = label
         self.n_pixels = n_pixels
         self.n_arroz = n_arroz
+        self.top = t
+        self.left = l
+        self.bottom = b
+        self.right = r
 
-
-def testaComponentes (dictionary, media):
-    min = media - media*0.5
-    max = media + media*0.4
-    print("\nmedia = " + str(media))
-    print("\nmin = " + str(min))
-    print("\nmax = " + str(max))
+def calculaDesvioPixels(dictionary, media):
+    count_comp = 0
+    sum_desvio = 0
 
     for i in range(0, len(dictionary)):
         comp = dictionary[i]
-        print(str(comp.n_pixels))
+        if (comp.n_pixels - media) > 0:
+            sum_desvio = sum_desvio + (comp.n_pixels - media)
+            count_comp = count_comp + 1
+    desvio_medio = float(sum_desvio/count_comp)
+    print("\ndesvio medio pixels = " + str(desvio_medio))
+
+    return desvio_medio
+
+def calculaDesvioAltura(dictionary, media):
+    count_comp = 0
+    sum_desvio = 0
+
+    for i in range(0, len(dictionary)):
+        comp = dictionary[i]
+        if (comp.bottom - comp.top) - media > 0:
+            sum_desvio = sum_desvio + ((comp.bottom - comp.top) - media)
+            count_comp = count_comp + 1
+    desvio_medio = float(sum_desvio/count_comp)
+    print("\ndesvio medio altura = " + str(desvio_medio))
+
+    return desvio_medio
+
+def calculaDesvioLargura(dictionary, media):
+    count_comp = 0
+    sum_desvio = 0
+
+    for i in range(0, len(dictionary)):
+        comp = dictionary[i]
+        if (comp.right - comp.left) - media > 0:
+            sum_desvio = sum_desvio + ((comp.right - comp.left) - media)
+            count_comp = count_comp + 1
+    desvio_medio = float(sum_desvio/count_comp)
+    print("\ndesvio medio largura = " + str(desvio_medio))
+
+    return desvio_medio
+
+def testaComponentes (dictionary, mediaPixels, mediaLargura, mediaAltura):
+
+
+    print("\nmedia pixels = " + str(mediaPixels))
+    print("\nmedia altura = " + str(mediaAltura))
+    print("\nmedia largura = " + str(mediaLargura))
+
+    desvioPixels = calculaDesvioPixels(dictionary, mediaPixels)
+    desvioLargura = calculaDesvioLargura(dictionary, mediaLargura)
+    desvioAltura = calculaDesvioAltura(dictionary, mediaAltura)
+
+    fatorPixels = float(1 - float(desvioPixels/(mediaPixels+desvioPixels)))
+    fatorLargura = float(1 - float(desvioLargura/(mediaLargura+desvioLargura)))
+    fatorAltura = float(1 - float(desvioAltura/(mediaAltura+desvioAltura)))
+
+    if fatorPixels<fatorAltura and fatorPixels<fatorLargura:
+        if(desvioPixels>mediaPixels):
+            fatorPixels = fatorPixels * 0.62
+        else:
+            fatorPixels = fatorPixels * 0.7
+    elif fatorAltura<fatorPixels and fatorAltura<fatorLargura:
+        fatorAltura = fatorAltura * 0.73
+    elif fatorLargura<fatorPixels and fatorLargura<fatorAltura:
+        fatorLargura = fatorLargura * 0.73
+
+
+    print("\nfator pixels = " + str(fatorPixels))
+    print("\nfator altura = " + str(fatorAltura))
+    print("\nfator largura = " + str(fatorLargura))
+
+    sumPixels = mediaPixels*fatorPixels
+    sumLargura = mediaLargura*fatorLargura
+    sumAltura = mediaAltura*fatorAltura
+
+    #print("\nsoma = " + str(sum))
+
+    for i in range(0, len(dictionary)):
+        comp = dictionary[i]
+        #print(str(comp.n_pixels))
 
             #dictionary.append(comp)
         comp.n_arroz = 1
-        count = max
-        while comp.n_pixels > count:
-            count = count + max
+        countPixels = mediaPixels + sumPixels
+        countLargura = mediaLargura + sumLargura
+        countAltura = mediaAltura + sumAltura
+        while comp.n_pixels > countPixels or (comp.bottom - comp.top) > countAltura or (comp.right - comp.left) > countLargura:
+            countPixels = countPixels + sumPixels
+            countAltura = countAltura + sumAltura
+            countLargura = countLargura + sumLargura
             comp.n_arroz = comp.n_arroz + 1
 
 
@@ -52,6 +131,16 @@ def inunda (img, row, col, comp: Component, lenCol, lenRow):
         
         row = filaRow.pop(0)
         col = filaCol.pop(0)
+
+        if row > comp.bottom:
+            comp.bottom = row
+        elif row < comp.top:
+            comp.top = row
+        
+        if col < comp.left:
+            comp.left = col
+        elif col > comp.right:
+            comp.right = col
 
         #print("\nrow = " + str(row) + "\ncol = " + str(col))
 
@@ -89,26 +178,31 @@ def rotula (img):
     rows, cols = img.shape
     label = 2
     dictionary = []
-    num_comp = 0
     sum_pixels = 0
+    sum_altura = 0
+    sum_largura = 0
 
     for row in range (rows):
         for col in range (cols):
             #print(str(img[row, col]))
             if img[row, col] == 1:
-                num_comp = num_comp+1
-                comp = Component(label, 0, 0)
+                comp = Component(label, 0, 0, row, col, row, col)
                 inunda(img, row, col, comp, cols, rows)
 
-                sum_pixels = sum_pixels + comp.n_pixels
                 if comp.n_pixels >= N_PIXELS_MIN:
                     dictionary.append(comp)
+                    sum_pixels = sum_pixels + comp.n_pixels
+                    sum_altura = sum_altura + (comp.bottom - comp.top)
+                    sum_largura = sum_largura + (comp.right - comp.left)
 
                 #testaTamComponente(dictionary, comp)
                 label = label + 1
     
-    media = sum_pixels/len(dictionary)
-    testaComponentes(dictionary, media)
+
+    mediaPixels = sum_pixels/len(dictionary)
+    mediaLargura = sum_largura/len(dictionary)
+    mediaAltura = sum_altura/len(dictionary)
+    testaComponentes(dictionary, mediaPixels, mediaLargura, mediaAltura)
     return dictionary
 
 
