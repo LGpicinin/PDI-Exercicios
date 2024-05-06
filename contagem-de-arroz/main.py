@@ -1,118 +1,93 @@
 import numpy as np
 import cv2
 import sys
-import math
 
-IMG_60 = './imagens/60.bmp'
-IMG_82 = './imagens/82.bmp'
-IMG_114 = './imagens/114.bmp'
-IMG_150 = './imagens/150.bmp'
-IMG_205 = './imagens/205.bmp'
 
 N_PIXELS_MIN = 50
-N_PIXELS_MAX = 250
 
 class Component:
-    def __init__(self, label, n_pixels, n_arroz, t, l, b, r) -> None:
+    def __init__(self, label, n_pixels, n_arroz) -> None:
         self.label = label
         self.n_pixels = n_pixels
         self.n_arroz = n_arroz
-        self.top = t
-        self.left = l
-        self.bottom = b
-        self.right = r
+        self.oneRice = True
 
-def calculaDesvioPixels(dictionary, media):
+
+# calcula a média de blobs não grandes (com só um arroz) e o valor do desvio padrão mais alto
+def calculaMediaPixels(dictionary, media):
+
+    soma = 0
     count_comp = 0
-    sum_desvio = 0
+    maiorDesvio = 0
+    margem = media*0.6
+    comp_maiorDesvio = 0
 
-    for i in range(0, len(dictionary)):
-        comp = dictionary[i]
-        if (comp.n_pixels - media) > 0:
-            sum_desvio = sum_desvio + (comp.n_pixels - media)
-            count_comp = count_comp + 1
-    desvio_medio = float(sum_desvio/count_comp)
-    print("\ndesvio medio pixels = " + str(desvio_medio))
+    for k in range(0, len(dictionary)):
+        comp = dictionary[k]
+        if comp.oneRice == True:
+            desvio = comp.n_pixels - media
+            if desvio < margem:
+                soma = soma + comp.n_pixels
+                count_comp = count_comp + 1
+                if desvio > maiorDesvio:
+                    maiorDesvio = desvio
+                    comp_maiorDesvio = k
+            else:
+                comp.oneRice = False
 
-    return desvio_medio
+    
+    if count_comp>0:
+        media = float(soma/count_comp)
+        maiorDesvio = dictionary[comp_maiorDesvio].n_pixels - media
+    
+    return media, maiorDesvio
 
-def calculaDesvioAltura(dictionary, media):
+
+# calcula desvio médio entre os blobs não grandes (com só um arroz) que são maiores que a média
+def calculaDesvioMédio(dictionary, media):
+
     count_comp = 0
-    sum_desvio = 0
+    sumDesvio = 0
+    desvioMedio = 0
 
-    for i in range(0, len(dictionary)):
-        comp = dictionary[i]
-        if (comp.bottom - comp.top) - media > 0:
-            sum_desvio = sum_desvio + ((comp.bottom - comp.top) - media)
+    for k in range(0, len(dictionary)):
+        comp = dictionary[k]
+        if comp.oneRice == True:
+            desvio = comp.n_pixels - media
             count_comp = count_comp + 1
-    desvio_medio = float(sum_desvio/count_comp)
-    print("\ndesvio medio altura = " + str(desvio_medio))
+            if desvio > 0:
+                sumDesvio = sumDesvio + desvio
 
-    return desvio_medio
-
-def calculaDesvioLargura(dictionary, media):
-    count_comp = 0
-    sum_desvio = 0
-
-    for i in range(0, len(dictionary)):
-        comp = dictionary[i]
-        if (comp.right - comp.left) - media > 0:
-            sum_desvio = sum_desvio + ((comp.right - comp.left) - media)
-            count_comp = count_comp + 1
-    desvio_medio = float(sum_desvio/count_comp)
-    print("\ndesvio medio largura = " + str(desvio_medio))
-
-    return desvio_medio
-
-def testaComponentes (dictionary, mediaPixels, mediaLargura, mediaAltura):
+    if count_comp>0:
+        desvioMedio = sumDesvio/count_comp
+    
+    return desvioMedio
 
 
-    print("\nmedia pixels = " + str(mediaPixels))
-    print("\nmedia altura = " + str(mediaAltura))
-    print("\nmedia largura = " + str(mediaLargura))
-
-    desvioPixels = calculaDesvioPixels(dictionary, mediaPixels)
-    desvioLargura = calculaDesvioLargura(dictionary, mediaLargura)
-    desvioAltura = calculaDesvioAltura(dictionary, mediaAltura)
-
-    fatorPixels = float(1 - float(desvioPixels/(mediaPixels+desvioPixels)))
-    fatorLargura = float(1 - float(desvioLargura/(mediaLargura+desvioLargura)))
-    fatorAltura = float(1 - float(desvioAltura/(mediaAltura+desvioAltura)))
-
-    if fatorPixels<fatorAltura and fatorPixels<fatorLargura:
-        if(desvioPixels>mediaPixels):
-            fatorPixels = fatorPixels * 0.62
-        else:
-            fatorPixels = fatorPixels * 0.7
-    elif fatorAltura<fatorPixels and fatorAltura<fatorLargura:
-        fatorAltura = fatorAltura * 0.73
-    elif fatorLargura<fatorPixels and fatorLargura<fatorAltura:
-        fatorLargura = fatorLargura * 0.73
 
 
-    print("\nfator pixels = " + str(fatorPixels))
-    print("\nfator altura = " + str(fatorAltura))
-    print("\nfator largura = " + str(fatorLargura))
+def testaComponentes (dictionary, mediaPixels):
 
-    sumPixels = mediaPixels*fatorPixels
-    sumLargura = mediaLargura*fatorLargura
-    sumAltura = mediaAltura*fatorAltura
 
-    #print("\nsoma = " + str(sum))
+    mediaPixels, maiorDesvioAtual = calculaMediaPixels(dictionary, mediaPixels)
+    desvioMedio = calculaDesvioMédio(dictionary, mediaPixels)
+
+    while maiorDesvioAtual >= mediaPixels*0.6:
+        mediaPixels, maiorDesvioAtual = calculaMediaPixels(dictionary, mediaPixels)
+        desvioMedio = calculaDesvioMédio(dictionary, mediaPixels)
+
+    
+    sumPixels = mediaPixels + desvioMedio
 
     for i in range(0, len(dictionary)):
-        comp = dictionary[i]
-        #print(str(comp.n_pixels))
 
-            #dictionary.append(comp)
+        comp = dictionary[i]
         comp.n_arroz = 1
-        countPixels = mediaPixels + sumPixels
-        countLargura = mediaLargura + sumLargura
-        countAltura = mediaAltura + sumAltura
-        while comp.n_pixels > countPixels or (comp.bottom - comp.top) > countAltura or (comp.right - comp.left) > countLargura:
+        countPixels = mediaPixels+maiorDesvioAtual
+
+        while comp.n_pixels > countPixels:
+       
             countPixels = countPixels + sumPixels
-            countAltura = countAltura + sumAltura
-            countLargura = countLargura + sumLargura
             comp.n_arroz = comp.n_arroz + 1
 
 
@@ -132,17 +107,6 @@ def inunda (img, row, col, comp: Component, lenCol, lenRow):
         row = filaRow.pop(0)
         col = filaCol.pop(0)
 
-        if row > comp.bottom:
-            comp.bottom = row
-        elif row < comp.top:
-            comp.top = row
-        
-        if col < comp.left:
-            comp.left = col
-        elif col > comp.right:
-            comp.right = col
-
-        #print("\nrow = " + str(row) + "\ncol = " + str(col))
 
         if (row+1 in range(0, lenRow)):
             if img[row+1, col] == 1:
@@ -179,31 +143,23 @@ def rotula (img):
     label = 2
     dictionary = []
     sum_pixels = 0
-    sum_altura = 0
-    sum_largura = 0
 
     for row in range (rows):
         for col in range (cols):
-            #print(str(img[row, col]))
             if img[row, col] == 1:
-                comp = Component(label, 0, 0, row, col, row, col)
+                comp = Component(label, 0, 0)
                 inunda(img, row, col, comp, cols, rows)
 
                 if comp.n_pixels >= N_PIXELS_MIN:
                     dictionary.append(comp)
                     sum_pixels = sum_pixels + comp.n_pixels
-                    sum_altura = sum_altura + (comp.bottom - comp.top)
-                    sum_largura = sum_largura + (comp.right - comp.left)
 
-                #testaTamComponente(dictionary, comp)
                 label = label + 1
     
 
     mediaPixels = sum_pixels/len(dictionary)
-    mediaLargura = sum_largura/len(dictionary)
-    mediaAltura = sum_altura/len(dictionary)
-    testaComponentes(dictionary, mediaPixels, mediaLargura, mediaAltura)
-    return dictionary
+
+    return dictionary, mediaPixels
 
 
 def changeImage (img, img_out):
@@ -244,12 +200,15 @@ def main ():
     cv2.imwrite ('./resultados/original.png', img_out*255)
 
 
-    # muda a imagem
+    # faz alterações na imagem e então binariza
     img_out = changeImage(img, img_out)
     cv2.imwrite ('./resultados/out.png', img_out*255)
 
     # rotula a imagem
-    components = rotula(img_out)
+    components, mediaPixels = rotula(img_out)
+
+    # conta quantos grãos de arroz tem em cada componente
+    testaComponentes(components, mediaPixels)
 
     # conta número de grãos de arroz
     n_components = len(components)
