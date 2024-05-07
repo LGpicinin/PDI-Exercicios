@@ -13,7 +13,9 @@ class Component:
         self.oneRice = True
 
 
-# calcula a média de blobs não grandes (com só um arroz) e o valor do desvio padrão mais alto
+# calcula a média de blobs não grandes (com só um arroz) e o valor do desvio padrão mais alto. 
+# O valor da margem foi estipulado a partir de alguns testes para definir o que seria um desvio 
+# padrão alto demais, sendo que margem*0.6 foi o valor que funcionou para todas as imagens
 def calculaMediaPixels(dictionary, media):
 
     soma = 0
@@ -43,7 +45,12 @@ def calculaMediaPixels(dictionary, media):
     return media, maiorDesvio
 
 
-# calcula desvio médio entre os blobs não grandes (com só um arroz) que são maiores que a média
+# calcula desvio médio entre os blobs não grandes (com só um arroz) que são maiores que a média. Entretanto,
+# na hora de dividir, divido pela quantidade total de blobs não grandes, pois dividir pela quantidade de blobs
+# maiores que a média resulta em um valor alto demais. 
+# Na realidade, somar e não somar o desvio médio na hora de calcular o número de grãos de arroz quase não faz 
+# diferença. Preferi fazer assim pois, sem somar, a contagem do 150 fica 152, e não tinha certeza se isso seria
+# considerado dentro dos 1%.
 def calculaDesvioMédio(dictionary, media):
 
     count_comp = 0
@@ -91,7 +98,9 @@ def testaComponentes (dictionary, mediaPixels):
             comp.n_arroz = comp.n_arroz + 1
 
 
-
+# função fload fill. Tentei fazer na mão pois no primeiro trabalho acabei cometendo alguns erros na
+# implementação, então considerei como uma oportunidade de corrigi-los. Tive que mudar de uma função 
+# recursiva para uma iterativa pois estava dando erro por estorar o limite de chamadas recursivas.
 def inunda (img, row, col, comp: Component, lenCol, lenRow):
 
     filaRow = []
